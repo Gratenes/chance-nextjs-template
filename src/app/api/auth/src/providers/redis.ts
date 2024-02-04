@@ -1,28 +1,28 @@
+import 'server-only'
 import Redis, { Redis as RedisInstance } from "ioredis";
 
 interface SetValueOptions {
   expire: number;
 }
 
-class RedisClient {
+interface Config {
+  redis_url: string;
+}
+
+export class RedisClient {
   private static instance: RedisClient | null = null;
   private static redisClient: RedisInstance | null = null;
 
-  public static getInstance(): RedisClient {
+  public static getInstance(config: Config): RedisClient {
     if (!RedisClient.instance) {
       RedisClient.instance = new RedisClient();
+      RedisClient.redisClient = new Redis(config.redis_url);
     }
     return RedisClient.instance;
   }
 
   private get client(): RedisInstance {
-    if (!RedisClient.redisClient) {
-      if (!process.env.redis_url) {
-        throw new Error('Redis URL is missing');
-      }
-      RedisClient.redisClient = new Redis(process.env.redis_url);
-    }
-
+    if (!RedisClient.redisClient) throw "No redis url provided before trying to access redis"
     return RedisClient.redisClient;
   }
 
@@ -43,5 +43,3 @@ class RedisClient {
     console.log("Redis client connected");
   }
 }
-
-export default RedisClient;

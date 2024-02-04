@@ -1,3 +1,4 @@
+"use client";
 export async function signOutAndReload() {
   await fetch(`/api/auth/signOut`);
 
