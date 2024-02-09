@@ -28,14 +28,6 @@ jobs:
         run: |
           echo ::set-output name=VERSION::$(git rev-parse --short HEAD)
 
-      # - name: Install nixpacks
-          #run: |
-          #curl -sSL https://nixpacks.com/install.sh | bash
-
-      #- name: Build with nixpacks
-          #run: |
-          #nixpacks build . --name embedez-site
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
@@ -49,7 +41,7 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/${{ github.repository }}/embedez-site:${{ steps.get_version.outputs.VERSION }}
-            ghcr.io/${{ github.repository }}/embedez-site:${{ env.BRANCH_NAME }}
+            ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}:${{ env.BRANCH_NAME }}
           build-args: |
             mongodb_url=${{ secrets.MONGODB_URL }}
