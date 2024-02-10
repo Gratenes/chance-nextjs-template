@@ -54,7 +54,7 @@ export const sendErrorRedirect = (
   status: number,
   message: string,
 ) => {
-  return Response.redirect(`${process.env.NEXTAUTH_URL}/error?message=${message}&code=${status}`, 302,);
+  return Response.redirect(`${process.env.NEXTAUTH_URL}/api/auth/error?message=${message}&code=${status}`, 302,);
 };
 
 export type ApiResult<T> = JsonResult<T> | ErrorResult

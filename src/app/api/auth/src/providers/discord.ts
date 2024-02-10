@@ -2,7 +2,14 @@ import 'server-only'
 import axios from "axios";
 import {ISessions} from "@/databases/mongoose/schema/sessions";
 import {generateSHA256} from "@/app/api/auth/src/functions/generateSHA256";
-import {providers} from "@/app/api/auth";
+import {providers, secret} from "@/app/api/auth";
+import {sendErrorRedirect, sendJson} from "@/app/api";
+import jwt from 'jsonwebtoken';
+import {cookies} from "next/headers";
+import {NextRequest} from "next/server";
+import {importPKCS8, SignJWT} from "jose";
+import {nanoid} from "nanoid";
+import {createToken} from "@/app/api/auth/src/jwt";
 
 
 interface Config {
@@ -30,17 +37,88 @@ export class DiscordProvider {
     return this.instance
   }
 
-  public getRedirectUri(url?:string) {
+  /**
+   * Handles the callback from an external authentication provider.
+   * Obtains the authentication code from the request and retrieves the access token.
+   * Retrieves user data using the access token and performs various checks.
+   * Saves the user data and token information.
+   * Sets the session token and redirects the user back to the referring page.
+   *
+   * @param {NextRequest} request - The request object containing the authentication callback information.
+   * @return {Response} - The redirect response.
+   */
+  public async handleCallback(request: NextRequest) {
+    const searchParams = request.nextUrl.searchParams;
+    const code = searchParams.get("code");
+
+    if (!code) return sendErrorRedirect(400, "no ?code provided");
+
+    const token = await this.getToken(code);
+    const tokenData = token.data;
+
+    if (!tokenData || !tokenData.token_type || !tokenData.access_token)
+      return sendErrorRedirect(404, "discord token data request failed");
+
+    const userRes = await this.getUser(tokenData);
+    const user = userRes.data;
+
+    if (!user)
+      return sendErrorRedirect(404, "could not get user data from discord");
+
+    if (!user.id)
+      return sendErrorRedirect(404, "could not get user id from discord");
+
+    if (!user.verified)
+      return sendErrorRedirect(404, "please use a verified discord account");
+
+    const [savedAccount, savedUser, savedSession, cacheValue] = await this.saveData(user, tokenData);
+
+    const cookie = cookies();
+    cookie.set({
+      name: "SessionToken",
+      value: savedSession.cookieId,
+    });
+
+    const referrer = new URL(
+      cookie.get("redirectUrl")?.value || "/",
+      process.env.NEXTAUTH_URL,
+    );
+    cookie.delete("redirectUrl");
+
+    return Response.redirect(referrer, 302);
+  }
+
+  /**
+   * Handles the sign-in process and returns the OAuth URL.
+   *
+   * @param {NextRequest} request - The request object.
+   * @param {string} [referer] - The referer URL.
+   * @returns {Promise<Object>} - The JSON response containing the OAuth URL.
+   */
+  public async handleSignIn(request: NextRequest, referer?: string) {
+    const url = this.getOauthUrl()
+
+    cookies().set({name: "redirectUrl", value: referer || "/"});
+
+    return sendJson({url: url});
+  }
+
+  public async handleSignOut(request: NextRequest) {
+    return
+  }
+
+
+  private getRedirectUri(url?: string) {
     return `${url || process.env.NEXTAUTH_URL}/api/auth/callback/discord`
   }
 
-  public getOauthUrl(redirect_uri?:string): string {
+  private getOauthUrl(redirect_uri?: string): string {
     return `${this.credential.authorization}?scope=${this.credential.scopes.join(
       "+",
     )}&client_id=${this.credential.client_id}&response_type=code&redirect_uri=${redirect_uri || this.getRedirectUri()}`;
   }
 
-  public async getToken(code: string) {
+  private async getToken(code: string) {
     const data = new URLSearchParams();
     data.append("grant_type", "authorization_code");
     data.append("code", code);
@@ -59,7 +137,7 @@ export class DiscordProvider {
     });
   }
 
-  public async getUser(tokenData: any) {
+  private async getUser(tokenData: any) {
     return await axios.get("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `${tokenData.token_type} ${tokenData.access_token}`,
@@ -67,7 +145,7 @@ export class DiscordProvider {
     });
   }
 
-  public saveData(user: any, tokenData: any) {
+  private async saveData(user: any, tokenData: any) {
     const oauth = providers[this.name]
     const accountSchema = {
       accountId: user.id,
@@ -87,10 +165,15 @@ export class DiscordProvider {
       emailVerified: user.verified,
     };
 
-    console.log(userSchema)
+    const cookieId = await createToken({
+      sub: user.email,
+      provider: "discord",
+      email: user.email,
+      accountId: user.id,
+    }, new Date(new Date().getTime() + tokenData.expires_in * 1000))
 
     const sessionSchema: ISessions = {
-      cookieId: `${generateSHA256()}.discord`,
+      cookieId: cookieId,
       accountId: user.id,
       provider: 'discord'
     };
