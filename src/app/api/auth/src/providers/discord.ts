@@ -10,6 +10,7 @@ import {NextRequest} from "next/server";
 import {importPKCS8, SignJWT} from "jose";
 import {nanoid} from "nanoid";
 import {createToken} from "@/app/api/auth/src/jwt";
+import { env } from '@/env.mjs';
 
 
 interface Config {
@@ -81,7 +82,7 @@ export class DiscordProvider {
 
     const referrer = new URL(
       cookie.get("redirectUrl")?.value || "/",
-      process.env.NEXTAUTH_URL,
+      env.NEXTAUTH_URL,
     );
     cookie.delete("redirectUrl");
 
@@ -109,7 +110,7 @@ export class DiscordProvider {
 
 
   private getRedirectUri(url?: string) {
-    return `${url || process.env.NEXTAUTH_URL}/api/auth/callback/discord`
+    return `${url || env.NEXTAUTH_URL}/api/auth/callback/discord`
   }
 
   private getOauthUrl(redirect_uri?: string): string {

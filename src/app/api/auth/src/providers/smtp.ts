@@ -8,6 +8,7 @@ import {sendErrorRedirect, sendJson} from "@/app/api";
 import {cookies} from "next/headers";
 import {createToken} from "@/app/api/auth/src/jwt";
 import nodemailer, {Transporter} from "nodemailer"
+import { env } from '@/env.mjs';
 
 interface Config {
   host: string,
@@ -70,7 +71,7 @@ export class SmptProvider {
 
 
     // redirect to check inbox screen
-    const referrer = new URL(`/api/auth/message?message=${'Please check your inbox for a verification email'}`, process.env.NEXTAUTH_URL,);
+    const referrer = new URL(`/api/auth/message?message=${'Please check your inbox for a verification email'}`, env.NEXTAUTH_URL,);
     return Response.redirect(referrer, 302);
   }
 
@@ -100,13 +101,13 @@ export class SmptProvider {
       from: 'Chance <no-reply@chancecant.design>',
       to: email,
       subject: "Verification Email",
-      text: `${process.env.NEXTAUTH_URL}/api/auth/callback/smtp?token=${mailVerificationToken}`
+      text: `${env.NEXTAUTH_URL}/api/auth/callback/smtp?token=${mailVerificationToken}`
     })
 
     //Check if sign in, and if so please just return it as a token in cookies
 
     // redirect to check inbox screen
-    const referrer = new URL(`/api/auth/message?message=${'Please check your inbox for a verification email'}`, process.env.NEXTAUTH_URL,);
+    const referrer = new URL(`/api/auth/message?message=${'Please check your inbox for a verification email'}`, env.NEXTAUTH_URL,);
     return Response.redirect(referrer, 302);
   }
 
