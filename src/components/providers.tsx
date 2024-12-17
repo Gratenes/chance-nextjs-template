@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { RecoilRoot } from "recoil";
 
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
@@ -13,17 +12,17 @@ type Props = {
 
 export const Providers = ({ children }: Props) => {
   return (
-    <RecoilRoot>
+    <>
       <Toaster />
       <Popover />
       <ThemeProvider
         attribute="class"
-        defaultTheme="dark"
         enableSystem
+        defaultTheme="white"
         disableTransitionOnChange
       >
           {children}
       </ThemeProvider>
-    </RecoilRoot>
+    </>
   );
 };
